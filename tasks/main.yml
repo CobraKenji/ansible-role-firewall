@@ -40,5 +40,37 @@
     state: "{{ firewall_state }}"
     enabled: "{{ firewall_enabled_at_boot }}"
 
-- import_tasks: disable-other-firewalls.yml
-  when: firewall_disable_firewalld or firewall_disable_ufw
+- name: Check if firewalld package is installed (on RHEL).
+  command: yum list installed firewalld
+  args:
+    warn: false
+  register: firewalld_installed
+  ignore_errors: true
+  changed_when: false
+  when:
+    - ansible_os_family == "RedHat"
+    - firewall_disable_firewalld
+  check_mode: false
+
+- name: Disable the firewalld service (on RHEL, if configured).
+  service:
+    name: firewalld
+    state: stopped
+    enabled: false
+  when:
+    - ansible_os_family == "RedHat"
+    - firewall_disable_firewalld
+    - firewalld_installed.rc == 0
+
+- name: Check if ufw package is installed (on Ubuntu).
+  command: service ufw status
+  args:
+    warn: false
+  register: ufw_installed
+  ignore_errors: true
+  changed_when: false
+  when:
+    - ansible_distribution == "Ubuntu"
+    - firewall_disable_ufw
+  check_mode: false
+
